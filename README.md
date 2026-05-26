@@ -49,6 +49,7 @@ Vision AI Classifier
 Structured JSON Output
       ↓
 Extraction Pipeline
+'''
 ---
 Classification Types
 
