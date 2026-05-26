@@ -49,6 +49,7 @@ Vision AI Classifier
 Structured JSON Output
       ↓
 Extraction Pipeline
+---
 Classification Types
 
 The Vision AI classifier categorizes pages into:
