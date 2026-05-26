@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-multipart
+openai
+python-dotenv
+pdf2image
+pillow
+requests

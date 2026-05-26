@@ -1,0 +1,11 @@
+.env
+gfs_env/
+__pycache__/
+*.pyc
+*.pyo
+/tmp/
+test_images/
+*.png
+*.jpg
+workflow_test_result.json
+classification_results.json
