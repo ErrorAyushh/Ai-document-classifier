@@ -59,6 +59,7 @@ COVER	Main cover/project information pages
 PLAN_VIEW	Plan/unit layout drawings
 MGDS_CATALOG	Modular Glass Deck System catalog pages
 OTHER	Detail pages, labels, elevations, warranties, etc.
+---
 Tech Stack
 Python
 FastAPI
