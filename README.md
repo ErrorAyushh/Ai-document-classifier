@@ -192,15 +192,24 @@ python page_classifier_ayush.py --image test_images/page_1.png --page_number 1
 Ai-document-classifier/
 │
 ├── fastapi_app.py
+
 ├── page_classifier_ayush.py
+
 ├── vision_client.py
+
 ├── pdf_to_images.py
+
 ├── folder_processor.py
+
 ├── error_handler.py
+
 ├── requirements.txt
+
 ├── README.md
+
 │
 ├── test_images/
+
 │
 └── sample_outputs/
 
@@ -227,5 +236,5 @@ This repository contains a simplified/sanitized implementation intended for demo
 
 ## Author
 
-**Ayush Balli**  
+**Ayush Kumar Singh**  
 GitHub: [ErrorAyushh](https://github.com/ErrorAyushh)
