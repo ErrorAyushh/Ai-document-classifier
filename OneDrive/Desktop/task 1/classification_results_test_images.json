@@ -1,0 +1,20 @@
+[
+  {
+    "page_number": 1,
+    "image_path": "test_images\\page_1.png",
+    "page_type": "COVER",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 2,
+    "image_path": "test_images\\page_2.png",
+    "page_type": "PLAN_VIEW",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 3,
+    "image_path": "test_images\\page_3.png",
+    "page_type": "OTHER",
+    "confidence": "HIGH"
+  }
+]

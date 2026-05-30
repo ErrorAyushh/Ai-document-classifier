@@ -1,0 +1,56 @@
+[
+  {
+    "page_number": 1,
+    "image_path": "test_images\\test_pdf_3\\page_1.png",
+    "page_type": "MGDS_CATALOG",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 2,
+    "image_path": "test_images\\test_pdf_3\\page_2.png",
+    "page_type": "MGDS_CATALOG",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 3,
+    "image_path": "test_images\\test_pdf_3\\page_3.png",
+    "page_type": "PLAN_VIEW",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 4,
+    "image_path": "test_images\\test_pdf_3\\page_4.png",
+    "page_type": "MGDS_CATALOG",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 5,
+    "image_path": "test_images\\test_pdf_3\\page_5.png",
+    "page_type": "MGDS_CATALOG",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 6,
+    "image_path": "test_images\\test_pdf_3\\page_6.png",
+    "page_type": "MGDS_CATALOG",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 7,
+    "image_path": "test_images\\test_pdf_3\\page_7.png",
+    "page_type": "MGDS_CATALOG",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 8,
+    "image_path": "test_images\\test_pdf_3\\page_8.png",
+    "page_type": "MGDS_CATALOG",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 9,
+    "image_path": "test_images\\test_pdf_3\\page_9.png",
+    "page_type": "PLAN_VIEW",
+    "confidence": "HIGH"
+  }
+]

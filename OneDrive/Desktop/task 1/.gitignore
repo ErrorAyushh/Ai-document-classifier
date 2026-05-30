@@ -5,6 +5,7 @@ __pycache__/
 *.pyo
 /tmp/
 test_images/
+test_pdfs/
 *.png
 *.jpg
 workflow_test_result.json

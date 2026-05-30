@@ -1,0 +1,74 @@
+[
+  {
+    "page_number": 1,
+    "image_path": "test_images\\test_pdf_2\\page_1.png",
+    "page_type": "COVER",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 2,
+    "image_path": "test_images\\test_pdf_2\\page_10.png",
+    "page_type": "PLAN_VIEW",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 3,
+    "image_path": "test_images\\test_pdf_2\\page_11.png",
+    "page_type": "PLAN_VIEW",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 4,
+    "image_path": "test_images\\test_pdf_2\\page_12.png",
+    "page_type": "PLAN_VIEW",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 5,
+    "image_path": "test_images\\test_pdf_2\\page_2.png",
+    "page_type": "PLAN_VIEW",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 6,
+    "image_path": "test_images\\test_pdf_2\\page_3.png",
+    "page_type": "OTHER",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 7,
+    "image_path": "test_images\\test_pdf_2\\page_4.png",
+    "page_type": "OTHER",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 8,
+    "image_path": "test_images\\test_pdf_2\\page_5.png",
+    "page_type": "OTHER",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 9,
+    "image_path": "test_images\\test_pdf_2\\page_6.png",
+    "page_type": "OTHER",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 10,
+    "image_path": "test_images\\test_pdf_2\\page_7.png",
+    "page_type": "PLAN_VIEW",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 11,
+    "image_path": "test_images\\test_pdf_2\\page_8.png",
+    "page_type": "PLAN_VIEW",
+    "confidence": "HIGH"
+  },
+  {
+    "page_number": 12,
+    "image_path": "test_images\\test_pdf_2\\page_9.png",
+    "page_type": "OTHER",
+    "confidence": "HIGH"
+  }
+]
