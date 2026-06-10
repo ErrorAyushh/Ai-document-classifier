@@ -1,3 +1,7 @@
+import re
+from typing import Any, Dict, List, Optional
+
+
 def compute_confidence(extraction_result: dict) -> dict:
     # This function is a quality control inspector
     # After the AI extracts data from a drawing, this function checks
@@ -176,6 +180,330 @@ def compute_confidence(extraction_result: dict) -> dict:
         "issues": issues,
         "flags_for_estimator": flags_for_estimator
     }
+
+
+# ---------------------------------------------------------------------------
+# score_extraction
+# ---------------------------------------------------------------------------
+
+# Expected dimension ranges (min_inches, max_inches) per series
+_SERIES_RANGES: Dict[str, tuple] = {
+    "Series 1000": (12,  120),
+    "Series 2000": (24,  144),
+    "Series 3000": (18,  200),
+    "Econoframe":  (60,  400),
+}
+
+# Job types whose dimensions are non-standard and must skip range checks
+_SKIP_RANGE_CHECK_JOB_TYPES: tuple = (
+    "TYPE_ECONOFRAME",
+    "TYPE_MULTI_UNIT",
+    "TYPE_CUSTOM",
+)
+
+
+def _make_flag(field: str, level: str, message: str) -> Dict[str, str]:
+    """Helper — build a single flag dict."""
+    return {"field": field, "level": level, "message": message}
+
+
+def score_extraction(
+    cover_result: Dict[str, Any],
+    plan_result:  Dict[str, Any],
+    frame_result: Dict[str, Any],
+    glass_result: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    Evaluate the quality of extracted job data and return confidence flags
+    for the estimator.
+
+    Parameters
+    ----------
+    cover_result : dict
+        Raw output from the cover extractor.
+    plan_result : dict
+        Raw output from plan_extractor / ocr_plan_extractor.
+    frame_result : dict
+        Output from frame_selector.select_frame().
+    glass_result : dict
+        Output from glass_selector.select_glass().
+
+    Returns
+    -------
+    dict
+        overall               : "HIGH" | "MEDIUM" | "LOW"
+        score                 : float  – 0.0 to 1.0
+        flags                 : list of {"field": str, "level": str, "message": str}
+        manual_review_required: bool
+    """
+    flags: List[Dict[str, str]] = []
+
+    # ------------------------------------------------------------------ #
+    # COVER FLAGS                                                          #
+    # ------------------------------------------------------------------ #
+
+    # Flag 1 — cover page could not be fully read by vision
+    if cover_result.get("needs_vision") is True:
+        flags.append(_make_flag(
+            field="cover",
+            level="WARN",
+            message=(
+                "Cover page could not be fully read. Some header fields may be "
+                "missing — verify project name, address, and glass spec."
+            ),
+        ))
+
+    # Flag 2 — project address missing
+    # Fixed: removed stray space before "confirm" in error message
+    if not cover_result.get("project_header", {}).get("project_address"):
+        flags.append(_make_flag(
+            field="project_address",
+            level="ERROR",
+            message=(
+                "Project address not found. Cannot determine duty rate or "
+                "confirm project."
+            ),
+        ))
+
+    # Flag 3 — glass makeup missing
+    if not cover_result.get("glass_specification", {}).get("glass_makeup"):
+        flags.append(_make_flag(
+            field="glass_makeup",
+            level="WARN",
+            message=(
+                "Glass makeup not extracted. Series, NanoDot, and HST "
+                "selections may be incorrect."
+            ),
+        ))
+
+    # Flag 4 — no unit table on cover
+    if not cover_result.get("units"):
+        flags.append(_make_flag(
+            field="units_table",
+            level="INFO",
+            message=(
+                "No unit table found on cover. Unit dimensions sourced from "
+                "plan drawings only."
+            ),
+        ))
+
+    # ------------------------------------------------------------------ #
+    # PLAN FLAGS                                                           #
+    # ------------------------------------------------------------------ #
+
+    # Flag 5 — plan page required vision fallback
+    if plan_result.get("needs_vision") is True:
+        flags.append(_make_flag(
+            field="dimensions",
+            level="ERROR",
+            message=(
+                "Exposed frame dimensions not found by OCR. Enter width and "
+                "length manually."
+            ),
+        ))
+
+    # Retrieve dimension dicts once — used by flags 6-8 and sanity checks
+    w: Optional[Dict[str, Any]] = plan_result.get("exposed_frame_width")
+    l: Optional[Dict[str, Any]] = plan_result.get("exposed_frame_length")
+    width_dec:  Optional[float] = w.get("decimal") if w else None
+    length_dec: Optional[float] = l.get("decimal") if l else None
+
+    # Flag 6 — both dimensions missing
+    if w is None and l is None:
+        flags.append(_make_flag(
+            field="dimensions",
+            level="ERROR",
+            message="No dimensions extracted. Manual entry required.",
+        ))
+
+    # Flag 7 — only width found
+    elif w is not None and l is None:
+        flags.append(_make_flag(
+            field="exposed_frame_length",
+            level="WARN",
+            message="Only width found. Length not extracted — enter manually.",
+        ))
+
+    # Flag 8 — only length found
+    elif l is not None and w is None:
+        flags.append(_make_flag(
+            field="exposed_frame_width",
+            level="WARN",
+            message="Only length found. Width not extracted — enter manually.",
+        ))
+
+    # Flag 9 — unit letter not identified
+    if plan_result.get("unit_letter") is None:
+        flags.append(_make_flag(
+            field="unit_letter",
+            level="WARN",
+            message=(
+                "Could not identify unit label (A, B, C...). Verify which "
+                "unit this drawing corresponds to."
+            ),
+        ))
+
+    # Flag 10 — OCR tesseract method used (less reliable than vision)
+    if plan_result.get("method") == "ocr_tesseract":
+        flags.append(_make_flag(
+            field="dimensions",
+            level="WARN",
+            message=(
+                "Dimensions extracted via OCR — verify values match the "
+                "drawing before submitting."
+            ),
+        ))
+
+    # ------------------------------------------------------------------ #
+    # DIMENSION SANITY CHECKS                                              #
+    # ------------------------------------------------------------------ #
+
+    series: str = cover_result.get("frame", {}).get("series", "") or ""
+
+    # Skip all dimension range and sanity checks for job types that have
+    # non-standard dimensions — these would produce false ERROR flags.
+    # TYPE_ECONOFRAME: retrofit jobs use existing opening sizes (any dimension)
+    # TYPE_MULTI_UNIT: Series 3000 / CityScape multi-unit layouts vary widely
+    # TYPE_CUSTOM:     ellipse / non-rectangular shapes have no standard range
+    skip_range_checks: bool = frame_result.get("job_type") in _SKIP_RANGE_CHECK_JOB_TYPES
+
+    if not skip_range_checks:
+        # Width out-of-range for series
+        if width_dec is not None:
+            for s_name, (mn, mx) in _SERIES_RANGES.items():
+                if s_name.lower() in series.lower():
+                    if not (mn <= width_dec <= mx):
+                        flags.append(_make_flag(
+                            field="exposed_frame_width",
+                            level="ERROR",
+                            message=(
+                                f"Width {width_dec}\" is outside expected range for "
+                                f"{series} ({mn}\"-{mx}\"). Likely OCR error — "
+                                f"verify drawing."
+                            ),
+                        ))
+
+        # Length out-of-range for series
+        if length_dec is not None:
+            for s_name, (mn, mx) in _SERIES_RANGES.items():
+                if s_name.lower() in series.lower():
+                    if not (mn <= length_dec <= mx):
+                        flags.append(_make_flag(
+                            field="exposed_frame_length",
+                            level="ERROR",
+                            message=(
+                                f"Length {length_dec}\" is outside expected range for "
+                                f"{series} ({mn}\"-{mx}\"). Likely OCR error — "
+                                f"verify drawing."
+                            ),
+                        ))
+
+        # Width larger than length — possible swap
+        if width_dec and length_dec and width_dec > length_dec:
+            flags.append(_make_flag(
+                field="dimensions",
+                level="WARN",
+                message=(
+                    f"Width ({width_dec}\") is larger than length ({length_dec}\"). "
+                    f"Dimensions may be swapped — verify drawing."
+                ),
+            ))
+
+    # Cross-check cover unit table vs plan dimensions
+    # This check runs regardless of job type — it is a data consistency check,
+    # not a range check, so it is not affected by skip_range_checks
+    cover_units: List[Dict[str, Any]] = cover_result.get("units", []) or []
+    if cover_units and width_dec is not None and length_dec is not None:
+        for cu in cover_units:
+            cu_w = cu.get("width")
+            cu_l = cu.get("length")
+            if cu_w and cu_l:
+                cover_nums: set = set(re.findall(r"\d+", str(cu_w) + str(cu_l)))
+                plan_nums:  set = set(re.findall(r"\d+", str(width_dec) + str(length_dec)))
+                if cover_nums and plan_nums and not cover_nums.intersection(plan_nums):
+                    flags.append(_make_flag(
+                        field="dimensions",
+                        level="WARN",
+                        message=(
+                            f"Cover page shows unit dimensions {cu_w}x{cu_l} but "
+                            f"plan extraction got {width_dec}\"x{length_dec}\". "
+                            f"Verify which is correct."
+                        ),
+                    ))
+            break  # only check the first cover unit
+
+    # ------------------------------------------------------------------ #
+    # FRAME / GLASS FLAGS                                                  #
+    # ------------------------------------------------------------------ #
+
+    # Flag 11 — custom/non-standard frame
+    if frame_result.get("job_type") == "TYPE_CUSTOM":
+        flags.append(_make_flag(
+            field="frame_type",
+            level="ERROR",
+            message=(
+                "Custom/non-standard frame detected. Full manual review "
+                "required — do not auto-fill."
+            ),
+        ))
+
+    # Flag 12 — glass-only replacement job
+    if frame_result.get("job_type") == "TYPE_GLASS_ONLY":
+        flags.append(_make_flag(
+            field="frame_type",
+            level="INFO",
+            message=(
+                "Glass-only replacement job. No frame rows will be toggled "
+                "in the worksheet."
+            ),
+        ))
+
+    # Flag 13 — duty is False but address has commas (possibly Canadian)
+    project_address: str = (
+        cover_result.get("project_header", {}).get("project_address") or ""
+    )
+    if not frame_result.get("duty") and "," in project_address:
+        flags.append(_make_flag(
+            field="duty",
+            level="INFO",
+            message=(
+                "Duty set to No. Confirm project is US-based "
+                "(not Canadian distributor)."
+            ),
+        ))
+
+    # ------------------------------------------------------------------ #
+    # SCORING                                                              #
+    # ------------------------------------------------------------------ #
+
+    error_count: int = sum(1 for f in flags if f["level"] == "ERROR")
+    warn_count:  int = sum(1 for f in flags if f["level"] == "WARN")
+
+    score: float = 1.0
+    score -= error_count * 0.25
+    score -= warn_count  * 0.10
+    score = max(0.0, min(1.0, score))
+
+    if score >= 0.8:
+        overall = "HIGH"
+    elif score >= 0.5:
+        overall = "MEDIUM"
+    else:
+        overall = "LOW"
+
+    manual_review_required: bool = (
+        overall == "LOW"
+        or error_count >= 2
+        or frame_result.get("job_type") == "TYPE_CUSTOM"
+    )
+
+    return {
+        "overall":               overall,
+        "score":                 score,
+        "flags":                 flags,
+        "manual_review_required": manual_review_required,
+    }
+
 
 if __name__ == "__main__":
     import argparse

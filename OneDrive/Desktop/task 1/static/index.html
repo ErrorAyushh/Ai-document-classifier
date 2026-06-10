@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GFS Drawing Intelligence Pipeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --ink:#0a0a0f;
+  --paper:#f5f3ef;
+  --paper2:#ebe8e2;
+  --accent:#d4500a;
+  --accent2:#1a3a6b;
+  --green:#1a6b3a;
+  --green-bg:#e8f5ee;
+  --blue-bg:#e8eef5;
+  --orange-bg:#fdf0e8;
+  --red:#8b1a1a;
+  --red-bg:#faeaea;
+  --grey:#8a8580;
+  --border:#d0ccc4;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'Syne',sans-serif;
+}
+
+body{
+  font-family:var(--sans);
+  background:var(--paper);
+  color:var(--ink);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── GRID BACKGROUND ── */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:
+    linear-gradient(rgba(10,10,15,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(10,10,15,0.04) 1px, transparent 1px);
+  background-size:40px 40px;
+  pointer-events:none;
+  z-index:0;
+}
+
+/* ── HEADER ── */
+header{
+  position:relative;
+  z-index:10;
+  padding:24px 40px;
+  border-bottom:2px solid var(--ink);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--paper);
+}
+
+.logo-block{display:flex;align-items:center;gap:16px}
+.logo-mark{
+  width:44px;height:44px;
+  background:var(--ink);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:var(--paper);
+  font-weight:800;letter-spacing:-1px;
+}
+.logo-text{
+  font-size:13px;font-weight:600;
+  text-transform:uppercase;letter-spacing:3px;
+  line-height:1.3;
+}
+.logo-text span{display:block;color:var(--accent);letter-spacing:1px;font-size:11px}
+
+.status-row{display:flex;align-items:center;gap:20px;font-size:12px;font-family:var(--mono)}
+.status-pill{
+  display:flex;align-items:center;gap:7px;
+  padding:6px 14px;border:1px solid var(--border);
+  background:var(--paper2);font-size:11px;
+}
+.dot{width:7px;height:7px;border-radius:50%;background:#aaa}
+.dot.green{background:#22c55e;box-shadow:0 0 6px #22c55e}
+.dot.red{background:var(--accent)}
+
+/* ── MAIN LAYOUT ── */
+.main{
+  position:relative;z-index:1;
+  max-width:1400px;margin:0 auto;
+  padding:40px;
+  display:grid;
+  grid-template-columns:420px 1fr;
+  gap:32px;align-items:start;
+}
+
+/* ── PANEL ── */
+.panel{
+  background:var(--paper);
+  border:2px solid var(--ink);
+  padding:0;
+  overflow:hidden;
+}
+.panel-header{
+  padding:14px 20px;
+  background:var(--ink);
+  color:var(--paper);
+  font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:3px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.panel-body{padding:24px}
+
+/* ── UPLOAD ZONE ── */
+.upload-zone{
+  border:2px dashed var(--border);
+  padding:36px 20px;
+  text-align:center;
+  cursor:pointer;
+  transition:all 0.15s;
+  position:relative;
+  background:var(--paper2);
+}
+.upload-zone:hover,.upload-zone.drag{
+  border-color:var(--accent);
+  background:var(--orange-bg);
+}
+.upload-zone input{
+  position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;
+}
+.upload-icon{font-size:36px;margin-bottom:12px;display:block}
+.upload-label{font-size:14px;font-weight:600;margin-bottom:6px}
+.upload-hint{font-size:12px;color:var(--grey);font-family:var(--mono)}
+
+.file-chip{
+  display:none;
+  align-items:center;gap:10px;
+  margin-top:16px;
+  padding:10px 14px;
+  background:var(--paper2);
+  border:1px solid var(--border);
+  font-size:12px;font-family:var(--mono);
+}
+.file-chip.show{display:flex}
+.file-chip-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.file-chip-size{color:var(--grey)}
+
+/* ── BUTTON ── */
+.btn{
+  width:100%;padding:14px;
+  margin-top:16px;
+  background:var(--ink);color:var(--paper);
+  border:none;font-family:var(--sans);
+  font-size:13px;font-weight:700;
+  text-transform:uppercase;letter-spacing:2px;
+  cursor:pointer;transition:all 0.15s;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.btn:hover:not(:disabled){background:var(--accent2)}
+.btn:disabled{opacity:0.35;cursor:not-allowed}
+.btn.running{background:var(--accent)}
+
+.btn-secondary{
+  width:100%;padding:10px;margin-top:10px;
+  background:transparent;color:var(--ink);
+  border:2px solid var(--ink);font-family:var(--sans);
+  font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:2px;
+  cursor:pointer;transition:all 0.15s;display:none;
+}
+.btn-secondary:hover{background:var(--ink);color:var(--paper)}
+.btn-secondary.show{display:block}
+
+/* ── SPINNER ── */
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner{
+  width:14px;height:14px;
+  border:2px solid rgba(255,255,255,0.3);
+  border-top-color:white;border-radius:50%;
+  animation:spin 0.6s linear infinite;flex-shrink:0;
+}
+
+/* ── PIPELINE STEPS ── */
+.steps{margin-top:20px;border-top:1px solid var(--border);padding-top:20px}
+.step{
+  display:flex;align-items:flex-start;gap:14px;
+  padding:9px 0;position:relative;
+}
+.step:not(:last-child)::after{
+  content:'';position:absolute;
+  left:11px;top:28px;bottom:-4px;
+  width:1px;background:var(--border);
+}
+.step.done::after{background:var(--green)}
+.step-num{
+  width:23px;height:23px;flex-shrink:0;
+  border:2px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:700;color:var(--grey);
+  font-family:var(--mono);margin-top:1px;
+  transition:all 0.2s;
+}
+.step.done .step-num{border-color:var(--green);color:var(--green);background:var(--green-bg)}
+.step.active .step-num{border-color:var(--accent);color:var(--accent);background:var(--orange-bg)}
+.step.error .step-num{border-color:var(--red);color:var(--red);background:var(--red-bg)}
+.step-info{}
+.step-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;transition:color 0.2s}
+.step.active .step-label{color:var(--accent)}
+.step.done .step-label{color:var(--green)}
+.step-sub{font-size:11px;color:var(--grey);font-family:var(--mono);margin-top:2px}
+
+/* ── ERROR ALERT ── */
+.error-box{
+  display:none;margin-top:16px;
+  padding:12px 14px;
+  background:var(--red-bg);border:1px solid #e5a0a0;
+  font-size:12px;color:var(--red);font-family:var(--mono);
+}
+.error-box.show{display:block}
+
+/* ── RIGHT PANEL ── */
+.right-col{display:flex;flex-direction:column;gap:24px}
+
+/* ── DOWNLOAD BAR ── */
+.download-bar{
+  display:none;
+  background:var(--ink);
+  border:2px solid var(--ink);
+  padding:16px 24px;
+  align-items:center;justify-content:space-between;gap:16px;
+  color:var(--paper);
+}
+.download-bar.show{display:flex}
+.download-bar-text strong{display:block;font-size:14px;font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.download-bar-text span{font-size:12px;opacity:0.6;font-family:var(--mono)}
+.btn-dl{
+  background:var(--accent);color:white;border:none;
+  padding:10px 22px;font-family:var(--sans);
+  font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:2px;
+  cursor:pointer;white-space:nowrap;transition:background 0.15s;
+}
+.btn-dl:hover{background:#b84008}
+
+/* ── TOKEN STATS ── */
+.stats-row{
+  display:none;
+  grid-template-columns:repeat(4, 1fr);
+  gap:1px;background:var(--border);
+  border:2px solid var(--ink);
+}
+.stats-row.show{display:grid}
+.stat-cell{
+  padding:14px 16px;
+  background:var(--paper);
+}
+.stat-num{font-size:22px;font-weight:800;font-family:var(--mono);line-height:1}
+.stat-label{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--grey);margin-top:4px}
+.stat-cell.accent .stat-num{color:var(--accent)}
+.stat-cell.green .stat-num{color:var(--green)}
+
+/* ── PAGE CLASSIFICATION ── */
+.pages-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(100px,1fr));
+  gap:8px;
+}
+.page-tile{
+  border:2px solid var(--border);
+  padding:12px 8px;text-align:center;
+  background:var(--paper2);
+}
+.tile-num{font-size:10px;color:var(--grey);font-family:var(--mono);margin-bottom:6px}
+.tile-badge{
+  display:inline-block;padding:3px 8px;
+  font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:0.5px;
+}
+.badge-cover{background:var(--green-bg);color:var(--green)}
+.badge-plan{background:var(--blue-bg);color:var(--accent2)}
+.badge-section{background:#f0eaf5;color:#6b1a8b}
+.badge-glass{background:#fff8e0;color:#8b6b00}
+.badge-other{background:var(--paper2);color:var(--grey)}
+.tile-method{
+  font-size:9px;font-family:var(--mono);color:var(--grey);
+  margin-top:5px;
+}
+.tile-stopped{
+  font-size:9px;font-family:var(--mono);
+  margin-top:3px;
+  padding:2px 4px;
+}
+
+/* ── EXTRACTION RESULTS ── */
+.tabs{
+  display:flex;gap:0;border-bottom:2px solid var(--ink);
+  margin-bottom:20px;
+}
+.tab{
+  padding:10px 18px;font-family:var(--sans);
+  font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:1.5px;
+  cursor:pointer;border:none;background:transparent;
+  border-right:1px solid var(--border);
+  transition:all 0.1s;
+}
+.tab.active{background:var(--ink);color:var(--paper)}
+.tab:last-child{border-right:none}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+
+/* ── FIELD TABLE ── */
+.field-table{width:100%;border-collapse:collapse}
+.field-table tr{border-bottom:1px solid var(--border)}
+.field-table tr:last-child{border-bottom:none}
+.field-table td{padding:9px 4px;font-size:12px;vertical-align:top}
+.field-key{
+  width:160px;color:var(--grey);
+  font-family:var(--mono);font-size:11px;
+  padding-right:12px;
+}
+.field-val{color:var(--ink);word-break:break-word;font-family:var(--mono);font-size:12px}
+.field-null{color:#bbb;font-style:italic}
+.field-val.highlight{
+  background:var(--orange-bg);
+  padding:2px 6px;
+  color:var(--accent);font-weight:600;
+}
+.field-val.green{color:var(--green);font-weight:600}
+
+/* ── DIM TABLE ── */
+.dim-table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:12px}
+.dim-table th{
+  text-align:left;padding:7px 10px;
+  background:var(--ink);color:var(--paper);
+  font-size:10px;text-transform:uppercase;letter-spacing:1px;
+  font-family:var(--sans);
+}
+.dim-table td{
+  padding:8px 10px;border-bottom:1px solid var(--border);
+}
+.dim-table tr:nth-child(even) td{background:var(--paper2)}
+.dim-found{color:var(--green);font-weight:600}
+.dim-missing{color:#ccc;font-style:italic}
+
+/* ── SECTION TITLE ── */
+.sec-title{
+  font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:3px;
+  color:var(--grey);margin:20px 0 10px;
+  padding-bottom:6px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.badge-method{
+  padding:2px 8px;border:1px solid var(--border);
+  font-size:9px;letter-spacing:1px;
+  background:var(--paper2);
+}
+.badge-method.ai{background:var(--orange-bg);color:var(--accent);border-color:#e8b090}
+.badge-method.nonai{background:var(--green-bg);color:var(--green);border-color:#90d0a8}
+.badge-method.ocr{background:var(--blue-bg);color:var(--accent2);border-color:#90a8d0}
+
+/* ── FLAGS ── */
+.flag{
+  display:flex;gap:10px;align-items:flex-start;
+  padding:9px 12px;margin-bottom:8px;
+  background:var(--orange-bg);border-left:3px solid var(--accent);
+  font-size:11px;font-family:var(--mono);color:var(--ink);
+}
+.flag-icon{color:var(--accent);flex-shrink:0}
+
+/* ── RAW JSON ── */
+.json-toggle{
+  font-size:10px;color:var(--grey);cursor:pointer;
+  padding:6px 0;background:none;border:none;
+  font-family:var(--mono);text-decoration:underline;
+  margin-top:8px;display:block;
+}
+.json-block{
+  display:none;background:var(--ink);color:#a8d8b0;
+  padding:16px;font-family:var(--mono);font-size:10px;
+  white-space:pre;overflow:auto;max-height:280px;
+  margin-top:8px;line-height:1.7;
+}
+.json-block.show{display:block}
+
+/* ── EMPTY STATE ── */
+.empty{
+  text-align:center;padding:48px 24px;color:var(--grey);
+}
+.empty-icon{font-size:48px;opacity:0.2;margin-bottom:16px;display:block}
+.empty-text{font-size:12px;font-family:var(--mono)}
+
+/* ── VISION BADGE ── */
+.vis-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:3px 10px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:1px;
+}
+.vis-badge.triggered{background:var(--orange-bg);color:var(--accent);border:1px solid #e8b090}
+.vis-badge.not-triggered{background:var(--green-bg);color:var(--green);border:1px solid #90d0a8}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fadeUp 0.3s ease forwards}
+
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+.pulse{animation:pulse 1.2s ease-in-out infinite}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-block">
+    <div class="logo-mark">GFS</div>
+    <div class="logo-text">
+      Drawing Intelligence Pipeline
+      <span>Non-AI · OCR · Vision Fallback</span>
+    </div>
+  </div>
+  <div class="status-row">
+    <div class="status-pill">
+      <div class="dot" id="apiDot"></div>
+      <span id="apiStatus">Checking API...</span>
+    </div>
+    <div class="status-pill" style="font-size:10px;color:var(--grey)" id="visionStatus">
+      Vision: —
+    </div>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- ── LEFT: UPLOAD + PIPELINE ── -->
+  <div>
+    <div class="panel">
+      <div class="panel-header">
+        <span>Upload Drawing</span>
+        <span style="opacity:0.5;font-size:10px">.PDF / .ZIP</span>
+      </div>
+      <div class="panel-body">
+
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept=".pdf,.zip">
+          <span class="upload-icon">⬡</span>
+          <div class="upload-label">Drop drawing here or click to browse</div>
+          <div class="upload-hint">Accepts PDF or ZIP — GFS shop drawings only</div>
+        </div>
+
+        <div class="file-chip" id="fileChip">
+          <span>📄</span>
+          <span class="file-chip-name" id="chipName">—</span>
+          <span class="file-chip-size" id="chipSize">—</span>
+        </div>
+
+        <div class="error-box" id="errorBox"></div>
+
+        <button class="btn" id="runBtn" disabled onclick="runPipeline()">
+          <span id="runBtnText">Run Pipeline</span>
+        </button>
+        <button class="btn-secondary" id="resetBtn" onclick="resetAll()">
+          Clear & Reset
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Pipeline Status -->
+    <div class="panel" style="margin-top:24px">
+      <div class="panel-header">
+        <span>Pipeline Status</span>
+        <span id="pipelineTimer" style="opacity:0.5;font-size:10px;font-family:var(--mono)"></span>
+      </div>
+      <div class="panel-body" style="padding:16px 24px">
+        <div class="steps">
+          <div class="step" id="s1">
+            <div class="step-num">1</div>
+            <div class="step-info">
+              <div class="step-label">Upload & Validate</div>
+              <div class="step-sub" id="s1sub"></div>
+            </div>
+          </div>
+          <div class="step" id="s2">
+            <div class="step-num">2</div>
+            <div class="step-info">
+              <div class="step-label">PDF Text Extraction</div>
+              <div class="step-sub" id="s2sub"></div>
+            </div>
+          </div>
+          <div class="step" id="s3">
+            <div class="step-num">3</div>
+            <div class="step-info">
+              <div class="step-label">Page Classification</div>
+              <div class="step-sub" id="s3sub"></div>
+            </div>
+          </div>
+          <div class="step" id="s4">
+            <div class="step-num">4</div>
+            <div class="step-info">
+              <div class="step-label">Non-AI Extraction</div>
+              <div class="step-sub" id="s4sub"></div>
+            </div>
+          </div>
+          <div class="step" id="s5">
+            <div class="step-num">5</div>
+            <div class="step-info">
+              <div class="step-label">OCR Extraction</div>
+              <div class="step-sub" id="s5sub"></div>
+            </div>
+          </div>
+          <div class="step" id="s6">
+            <div class="step-num">6</div>
+            <div class="step-info">
+              <div class="step-label">Vision Fallback</div>
+              <div class="step-sub" id="s6sub"></div>
+            </div>
+          </div>
+          <div class="step" id="s7">
+            <div class="step-num">7</div>
+            <div class="step-info">
+              <div class="step-label">Aggregator + Rules Engine</div>
+              <div class="step-sub" id="s7sub"></div>
+            </div>
+          </div>
+          <div class="step" id="s8">
+            <div class="step-num">8</div>
+            <div class="step-info">
+              <div class="step-label">Excel Report</div>
+              <div class="step-sub" id="s8sub"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RIGHT: RESULTS ── -->
+  <div class="right-col">
+
+    <!-- Download bar -->
+    <div class="download-bar" id="downloadBar">
+      <div class="download-bar-text">
+        <strong>Pipeline Complete</strong>
+        <span id="downloadMeta">—</span>
+      </div>
+      <button class="btn-dl" id="downloadBtn" onclick="downloadExcel()">⬇ Download Excel</button>
+    </div>
+
+    <!-- Token stats -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-cell">
+        <div class="stat-num" id="statPages">—</div>
+        <div class="stat-label">Pages Processed</div>
+      </div>
+      <div class="stat-cell accent">
+        <div class="stat-num" id="statVision">—</div>
+        <div class="stat-label">Vision Calls</div>
+      </div>
+      <div class="stat-cell green">
+        <div class="stat-num" id="statTokens">—</div>
+        <div class="stat-label">Total Tokens</div>
+      </div>
+      <div class="stat-cell">
+        <div class="stat-num" id="statTime">—</div>
+        <div class="stat-label">Elapsed (s)</div>
+      </div>
+    </div>
+
+    <!-- Page classification -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Page Classification</span>
+        <span id="classCount" style="opacity:0.5;font-size:10px"></span>
+      </div>
+      <div class="panel-body" id="classArea">
+        <div class="empty">
+          <span class="empty-icon">⬡</span>
+          <div class="empty-text">Upload a drawing to begin</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Extraction results -->
+    <div class="panel">
+      <div class="panel-header">
+        <span>Extraction Results</span>
+        <span id="confBadge" style="font-size:10px;opacity:0.7"></span>
+      </div>
+      <div class="panel-body" id="extractArea">
+        <div class="empty">
+          <span class="empty-icon pulse" style="animation:none;opacity:0.15">⬡</span>
+          <div class="empty-text">Results will appear here after processing</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8001'
+let selectedFile = null
+let lastResult   = null
+let startTime    = null
+let timerInterval= null
+
+// ── FILE SELECTION ──────────────────────────────────────────────────────────
+const fileInput  = document.getElementById('fileInput')
+const uploadZone = document.getElementById('uploadZone')
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files[0]) setFile(e.target.files[0])
+})
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag') })
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'))
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag')
+  if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0])
+})
+
+function setFile(f) {
+  selectedFile = f
+  const ext = f.name.split('.').pop().toLowerCase()
+  if (!['pdf','zip'].includes(ext)) { showError(`Unsupported: .${ext}`); return }
+  hideError()
+  document.getElementById('chipName').textContent = f.name
+  document.getElementById('chipSize').textContent = fmtSize(f.size)
+  document.getElementById('fileChip').classList.add('show')
+  document.getElementById('runBtn').disabled = false
+  document.getElementById('fileChip').querySelector('span').textContent = ext === 'zip' ? '🗜' : '📄'
+}
+
+function fmtSize(b) {
+  if (b < 1024) return b + ' B'
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB'
+  return (b/1048576).toFixed(1) + ' MB'
+}
+
+// ── HEALTH CHECK ────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch(`${API}/health`)
+    const d = await r.json()
+    document.getElementById('apiDot').className    = 'dot green'
+    document.getElementById('apiStatus').textContent = 'API Online'
+    document.getElementById('visionStatus').textContent =
+      `Vision: ${d.vision_available ? '✓ Available' : '✗ Offline'}`
+    document.getElementById('visionStatus').style.color =
+      d.vision_available ? 'var(--green)' : 'var(--accent)'
+  } catch {
+    document.getElementById('apiDot').className    = 'dot red'
+    document.getElementById('apiStatus').textContent = 'API Offline — start test_api.py'
+    document.getElementById('visionStatus').textContent = 'Vision: —'
+  }
+}
+checkHealth()
+setInterval(checkHealth, 15000)
+
+// ── PIPELINE RUN ────────────────────────────────────────────────────────────
+async function runPipeline() {
+  if (!selectedFile) return
+  hideError()
+  setBtnLoading(true)
+  resetSteps()
+  clearResults()
+  document.getElementById('resetBtn').classList.remove('show')
+  document.getElementById('downloadBar').classList.remove('show')
+  document.getElementById('statsRow').classList.remove('show')
+
+  startTime = Date.now()
+  timerInterval = setInterval(() => {
+    document.getElementById('pipelineTimer').textContent =
+      ((Date.now() - startTime) / 1000).toFixed(1) + 's'
+  }, 100)
+
+  setStep(1,'active','Uploading ' + selectedFile.name)
+
+  const fd = new FormData()
+  fd.append('file', selectedFile)
+
+  let data
+  try {
+    const res = await fetch(`${API}/upload`, { method:'POST', body:fd })
+    data = await res.json()
+    if (!data.success && !data.pages_processed) {
+      throw new Error(data.error || 'Pipeline failed')
+    }
+  } catch(e) {
+    setStep(1,'error','Failed: ' + e.message)
+    showError(e.message || 'Cannot connect. Is test_api.py running on port 8001?')
+    setBtnLoading(false)
+    clearInterval(timerInterval)
+    document.getElementById('resetBtn').classList.add('show')
+    return
+  }
+
+  lastResult = data
+  clearInterval(timerInterval)
+
+  // Animate steps
+  await delay(200)
+  setStep(1,'done',`run_id: ${data.run_id}`)
+  await delay(150)
+  setStep(2,'done',`${data.classification?.length || 0} pages extracted`)
+  await delay(150)
+
+  const cls = data.classification || []
+  const cover  = cls.filter(p => p.page_type === 'COVER').length
+  const plan   = cls.filter(p => p.page_type === 'PLAN_VIEW').length
+  const other  = cls.length - cover - plan
+  setStep(3,'done',`${cover} COVER · ${plan} PLAN · ${other} other`)
+  await delay(150)
+
+  const pr = data.page_results || []
+  const nonAiOk = pr.filter(p => p.method_used === 'non_ai').length
+  setStep(4,'done',`${nonAiOk} pages completed at Non-AI`)
+  await delay(150)
+
+  const ocrOk = pr.filter(p => p.method_used === 'ocr' || p.method_used === 'non_ai+ocr').length
+  setStep(5, ocrOk > 0 ? 'done' : 'done', ocrOk > 0 ? `${ocrOk} pages completed at OCR` : 'Not needed for this drawing')
+  await delay(150)
+
+  const vCalls = data.vision_calls || 0
+  setStep(6, vCalls > 0 ? 'done' : 'done',
+    vCalls > 0 ? `${vCalls} targeted Vision call(s) — ${data.token_summary?.total || 0} tokens` : 'Not required ✓')
+  await delay(150)
+
+  setStep(7, data.aggregated_result ? 'done' : 'error',
+    data.aggregated_result ? `job_type: ${data.aggregated_result?.job_type || '—'}` : 'No data to aggregate')
+  await delay(150)
+
+  setStep(8, data.excel_path ? 'done' : 'error',
+    data.excel_path ? 'Excel report ready' : 'No output generated')
+
+  // Stats
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1)
+  document.getElementById('statPages').textContent  = data.pages_processed || 0
+  document.getElementById('statVision').textContent = vCalls
+  document.getElementById('statTokens').textContent = data.token_summary?.total || 0
+  document.getElementById('statTime').textContent   = elapsed + 's'
+  document.getElementById('statsRow').classList.add('show')
+  document.getElementById('pipelineTimer').textContent = elapsed + 's'
+
+  // Classification
+  renderClassification(data)
+
+  // Extraction
+  renderExtraction(data)
+
+  // Download bar
+  if (data.excel_path) {
+    document.getElementById('downloadMeta').textContent =
+      `${data.pages_processed} pages · ${vCalls} Vision call(s) · ${elapsed}s`
+    document.getElementById('downloadBar').classList.add('show')
+  }
+
+  setBtnLoading(false)
+  document.getElementById('resetBtn').classList.add('show')
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)) }
+
+// ── STEPS ───────────────────────────────────────────────────────────────────
+function resetSteps() {
+  for (let i=1;i<=8;i++) {
+    const el = document.getElementById('s'+i)
+    el.className = 'step'
+    el.querySelector('.step-num').textContent = i
+    document.getElementById('s'+i+'sub').textContent = ''
+  }
+  document.getElementById('pipelineTimer').textContent = ''
+}
+
+function setStep(n, state, sub) {
+  const el  = document.getElementById('s'+n)
+  const num = el.querySelector('.step-num')
+  el.className = 'step ' + state
+  if (state === 'done')   num.textContent = '✓'
+  else if (state === 'error') num.textContent = '✗'
+  else if (state === 'active') num.innerHTML = '<div class="spinner" style="width:11px;height:11px;border-width:1.5px"></div>'
+  else num.textContent = n
+  document.getElementById('s'+n+'sub').textContent = sub || ''
+}
+
+// ── CLASSIFICATION ──────────────────────────────────────────────────────────
+function renderClassification(data) {
+  const area = document.getElementById('classArea')
+  const cls  = data.classification || []
+  const pr   = data.page_results   || []
+
+  if (!cls.length) { area.innerHTML = '<div class="empty"><span class="empty-icon">⬡</span><div class="empty-text">No pages found</div></div>'; return }
+
+  document.getElementById('classCount').textContent = cls.length + ' pages'
+
+  const typeMap = {
+    COVER:'badge-cover', PLAN_VIEW:'badge-plan',
+    SECTION:'badge-section', GLASS_DETAIL:'badge-glass',
+    SCANNED:'badge-other', OTHER:'badge-other', MGDS_CATALOG:'badge-other'
+  }
+  const labelMap = {
+    COVER:'Cover', PLAN_VIEW:'Plan', SECTION:'Section',
+    GLASS_DETAIL:'Glass', SCANNED:'Scanned', OTHER:'Other', MGDS_CATALOG:'MGDS'
+  }
+
+  const tiles = cls.map(p => {
+    const pr_page = pr.find(x => x.page_number === p.page_number)
+    const method  = pr_page?.method_used || ''
+    const vis     = pr_page?.vision_triggered ? '👁' : ''
+    const stopped = pr_page?.stage_stopped_at || ''
+    const badge   = typeMap[p.page_type] || 'badge-other'
+    const label   = labelMap[p.page_type] || p.page_type
+
+    let stoppedColor = '#bbb'
+    if (stopped.includes('NON_AI')) stoppedColor = 'var(--green)'
+    else if (stopped.includes('OCR')) stoppedColor = 'var(--accent2)'
+    else if (stopped.includes('VISION')) stoppedColor = 'var(--accent)'
+
+    return `<div class="page-tile fade-up">
+      <div class="tile-num">Pg ${p.page_number}</div>
+      <div class="tile-badge ${badge}">${label}</div>
+      <div class="tile-method">${method || '—'} ${vis}</div>
+      ${stopped ? `<div class="tile-stopped" style="color:${stoppedColor};font-family:var(--mono)">${stopped.replace('_',' ').toLowerCase()}</div>` : ''}
+    </div>`
+  }).join('')
+
+  area.innerHTML = `<div class="pages-grid">${tiles}</div>`
+}
+
+// ── EXTRACTION RESULTS ───────────────────────────────────────────────────────
+function renderExtraction(data) {
+  const area  = document.getElementById('extractArea')
+  const agg   = data.aggregated_result  || {}
+  const rules = data.rules_output       || {}
+  const pr    = data.page_results       || []
+
+  if (!data.pages_processed) {
+    area.innerHTML = '<div class="empty"><span class="empty-icon">⬡</span><div class="empty-text">No results</div></div>'
+    return
+  }
+
+  // Confidence
+  const conf = data.confidence
+  const confStr = typeof conf === 'object' ? JSON.stringify(conf) : String(conf || '—')
+  document.getElementById('confBadge').textContent = 'Confidence: ' + confStr
+
+  // Tabs
+  const coverPage = pr.find(p => p.page_type === 'COVER')
+  const planPages = pr.filter(p => p.page_type === 'PLAN_VIEW')
+  const visPages  = pr.filter(p => p.vision_triggered)
+
+  let html = `<div class="tabs">
+    <button class="tab active" onclick="switchTab('cover',this)">Cover</button>
+    <button class="tab" onclick="switchTab('plan',this)">Plan View (${planPages.length})</button>
+    <button class="tab" onclick="switchTab('rules',this)">Rules Engine</button>
+    <button class="tab" onclick="switchTab('raw',this)">Raw JSON</button>
+  </div>`
+
+  // ── Cover Tab ──
+  html += '<div class="tab-panel active" id="tab-cover">'
+  if (!agg.project_address && !agg.glass_makeup) {
+    html += '<div class="empty"><span class="empty-icon" style="font-size:32px;opacity:0.15">⬡</span><div class="empty-text">No cover data extracted</div></div>'
+  } else {
+    const coverMethod = coverPage?.method_used || 'non_ai'
+    const isVision = coverMethod.includes('vision')
+    html += `<div class="sec-title">Project Header <span class="badge-method ${isVision?'ai':'nonai'}">${coverMethod}</span></div>`
+    html += '<table class="field-table">'
+    html += fr('Project Address', agg.project_address)
+    html += fr('Contractor',      agg.approved_by_company)
+    html += fr('Approval Date',   agg.approval_date)
+    html += fr('Job Type',        agg.job_type)
+    html += fr('Expedited',       agg.expedited === true ? '⚡ YES' : agg.expedited, agg.expedited === true)
+    html += '</table>'
+
+    html += '<div class="sec-title" style="margin-top:20px">Glass Specification</div>'
+    const gm = agg.glass_makeup
+    if (gm && Array.isArray(gm) && gm.length) {
+      html += '<table class="field-table">'
+      gm.forEach((l,i) => { html += fr(`Layer ${i+1}`, l) })
+      html += '</table>'
+    } else {
+      html += `<table class="field-table">${fr('Glass Makeup', typeof gm === 'string' ? gm : null)}</table>`
+    }
+  }
+  html += `<button class="json-toggle" onclick="toggleJson('coverJson')">▶ View raw cover data</button>
+    <div class="json-block" id="coverJson">${esc(JSON.stringify(coverPage?.final_extraction || agg, null, 2))}</div>`
+  html += '</div>'
+
+  // ── Plan Tab ──
+  html += '<div class="tab-panel" id="tab-plan">'
+  if (!planPages.length) {
+    html += '<div class="empty"><span class="empty-icon" style="font-size:32px;opacity:0.15">⬡</span><div class="empty-text">No plan view pages</div></div>'
+  } else {
+    planPages.forEach(pp => {
+      const method = pp.method_used || '—'
+      const isVision = pp.vision_triggered
+      const isOcr = method.includes('ocr')
+      let mClass = 'nonai'
+      if (isVision) mClass = 'ai'
+      else if (isOcr) mClass = 'ocr'
+
+      html += `<div class="sec-title">Page ${pp.page_number} <span class="vis-badge ${isVision?'triggered':'not-triggered'}">${isVision?'👁 Vision Used':'✓ No Vision'}</span></div>`
+      html += `<div style="margin-bottom:10px"><span class="badge-method ${mClass}">${method}</span> <span style="font-size:10px;font-family:var(--mono);color:var(--grey)">stopped at: ${pp.stage_stopped_at||'—'}</span></div>`
+
+      const fe = pp.final_extraction || {}
+      const pd = fe.plan_dims || {}
+
+      html += '<table class="dim-table"><thead><tr><th>Dimension</th><th>Raw</th><th>Inches</th></tr></thead><tbody>'
+      const dims = [
+        ['Exposed Frame Width',  pd.exposed_frame_width_raw,  pd.exposed_frame_width_in],
+        ['Exposed Frame Height', pd.exposed_frame_height_raw, pd.exposed_frame_height_in],
+        ['Out-Out Flange W',     pd.out_to_out_flange_width_raw,  pd.out_to_out_flange_width_in],
+        ['Out-Out Flange H',     pd.out_to_out_flange_height_raw, pd.out_to_out_flange_height_in],
+        ['Glass Width',          pd.glass_width_raw,  pd.glass_width_in],
+        ['Glass Height',         pd.glass_height_raw, pd.glass_height_in],
+      ]
+      dims.forEach(([label, raw, inches]) => {
+        html += `<tr><td>${label}</td>
+          <td class="${raw?'dim-found':'dim-missing'}">${raw||'—'}</td>
+          <td class="${inches?'dim-found':'dim-missing'}">${inches != null ? inches + '"' : '—'}</td></tr>`
+      })
+      html += '</tbody></table>'
+
+      if (pp.targeted_prompt) {
+        html += `<button class="json-toggle" onclick="toggleJson('tp${pp.page_number}')">▶ View targeted Vision prompt</button>
+          <div class="json-block" id="tp${pp.page_number}">${esc(pp.targeted_prompt)}</div>`
+      }
+      html += `<button class="json-toggle" onclick="toggleJson('pj${pp.page_number}')">▶ View raw page data</button>
+        <div class="json-block" id="pj${pp.page_number}">${esc(JSON.stringify(pp, null, 2))}</div>`
+    })
+  }
+  html += '</div>'
+
+  // ── Rules Tab ──
+  html += '<div class="tab-panel" id="tab-rules">'
+  if (!rules || Object.keys(rules).length === 0) {
+    html += '<div class="empty"><span class="empty-icon" style="font-size:32px;opacity:0.15">⬡</span><div class="empty-text">No rules output</div></div>'
+  } else {
+    html += '<div class="sec-title">Rules Engine Output</div>'
+    html += '<table class="field-table">'
+    html += fr('Series',     rules.series)
+    html += fr('Confidence', rules.confidence)
+    html += fr('Expedited',  rules.expedited)
+    html += '</table>'
+
+    const flags = rules.flags || []
+    if (flags.length) {
+      html += '<div class="sec-title" style="margin-top:16px">Estimator Flags</div>'
+      flags.forEach(f => {
+        html += `<div class="flag"><span class="flag-icon">⚠</span><span>${f}</span></div>`
+      })
+    }
+
+    const units = rules.units || []
+    if (units.length) {
+      html += '<div class="sec-title" style="margin-top:16px">Units</div>'
+      html += '<table class="dim-table"><thead><tr><th>Unit</th><th>Width</th><th>Length</th><th>Qty</th><th>Sq Ft</th></tr></thead><tbody>'
+      units.forEach(u => {
+        html += `<tr>
+          <td>${u.unit_id||'—'}</td>
+          <td>${u.width||'—'}</td>
+          <td>${u.length||'—'}</td>
+          <td>${u.quantity||'—'}</td>
+          <td class="${u.computed_sqft?'dim-found':''}">${u.computed_sqft||'—'}</td>
+        </tr>`
+      })
+      html += '</tbody></table>'
+    }
+  }
+  html += `<button class="json-toggle" onclick="toggleJson('rulesJson')">▶ View full rules output</button>
+    <div class="json-block" id="rulesJson">${esc(JSON.stringify(rules, null, 2))}</div>`
+  html += '</div>'
+
+  // ── Raw JSON Tab ──
+  html += `<div class="tab-panel" id="tab-raw">
+    <div class="sec-title">Full API Response</div>
+    <div class="json-block show" style="max-height:500px">${esc(JSON.stringify(data, null, 2))}</div>
+  </div>`
+
+  area.innerHTML = html
+}
+
+function fr(label, value, highlight=false) {
+  const isNull = value === null || value === undefined || value === ''
+  const cls    = isNull ? 'field-null' : (highlight ? 'field-val highlight' : 'field-val')
+  const display= isNull ? '—' : String(value)
+  return `<tr><td class="field-key">${label}</td><td class="${cls}">${display}</td></tr>`
+}
+
+function esc(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+}
+
+// ── TABS ────────────────────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'))
+  btn.classList.add('active')
+  document.getElementById('tab-' + name).classList.add('active')
+}
+
+function toggleJson(id) {
+  const el  = document.getElementById(id)
+  const btn = el.previousElementSibling
+  el.classList.toggle('show')
+  btn.textContent = el.classList.contains('show') ? '▼ Hide' : '▶ View ' + btn.textContent.slice(6)
+}
+
+// ── DOWNLOAD ────────────────────────────────────────────────────────────────
+function downloadExcel() {
+  if (!lastResult?.excel_path) return
+  window.open(`${API}/download?path=${encodeURIComponent(lastResult.excel_path)}`, '_blank')
+  alert('Note: Add a GET /download endpoint to test_api.py to serve the Excel file,\nor copy it from:\n' + lastResult.excel_path)
+}
+
+// ── RESET ───────────────────────────────────────────────────────────────────
+function resetAll() {
+  selectedFile = lastResult = null
+  fileInput.value = ''
+  document.getElementById('fileChip').classList.remove('show')
+  document.getElementById('runBtn').disabled = true
+  document.getElementById('runBtn').innerHTML = '<span>Run Pipeline</span>'
+  document.getElementById('resetBtn').classList.remove('show')
+  document.getElementById('downloadBar').classList.remove('show')
+  document.getElementById('statsRow').classList.remove('show')
+  document.getElementById('classCount').textContent = ''
+  document.getElementById('confBadge').textContent  = ''
+  hideError()
+  resetSteps()
+  document.getElementById('classArea').innerHTML = '<div class="empty"><span class="empty-icon">⬡</span><div class="empty-text">Upload a drawing to begin</div></div>'
+  document.getElementById('extractArea').innerHTML = '<div class="empty"><span class="empty-icon pulse" style="animation:none;opacity:0.15">⬡</span><div class="empty-text">Results will appear here after processing</div></div>'
+}
+
+// ── HELPERS ─────────────────────────────────────────────────────────────────
+function setBtnLoading(loading) {
+  const btn = document.getElementById('runBtn')
+  if (loading) {
+    btn.disabled = true
+    btn.className = 'btn running'
+    btn.innerHTML = '<div class="spinner"></div> Running Pipeline...'
+  } else {
+    btn.disabled = false
+    btn.className = 'btn'
+    btn.innerHTML = '<span>Run Pipeline</span>'
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBox')
+  el.textContent = '⚠ ' + msg
+  el.classList.add('show')
+}
+
+function hideError() {
+  document.getElementById('errorBox').classList.remove('show')
+}
+
+function clearResults() {
+  document.getElementById('classArea').innerHTML  = '<div class="empty"><span class="empty-icon pulse">⬡</span><div class="empty-text" style="font-family:var(--mono)">Processing...</div></div>'
+  document.getElementById('extractArea').innerHTML = '<div class="empty"><span class="empty-icon pulse">⬡</span><div class="empty-text" style="font-family:var(--mono)">Waiting for results...</div></div>'
+}
+</script>
+</body>
+</html>
